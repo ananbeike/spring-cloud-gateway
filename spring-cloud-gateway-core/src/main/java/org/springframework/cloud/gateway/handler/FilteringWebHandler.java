@@ -82,7 +82,11 @@ public class FilteringWebHandler implements WebHandler{
         List<GatewayFilter> combined = new ArrayList<>(this.globalFilters);
         combined.addAll(gatewayFilters);
 
-        // TODO: needed or cached?
+		/**
+		 * 这里globalfilter和gatewayfilter的顺序都是按照 ordered接口来走的
+		 * 所以有可能gatewayfilter跑在globalfilter前面
+		 */
+		// TODO: needed or cached?
 		// filter 排序
         AnnotationAwareOrderComparator.sort(combined);
 
