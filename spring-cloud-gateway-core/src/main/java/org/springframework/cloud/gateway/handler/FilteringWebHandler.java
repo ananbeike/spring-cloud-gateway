@@ -16,14 +16,14 @@
 
 package org.springframework.cloud.gateway.handler;
 
+import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import reactor.core.publisher.Mono;
-
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -35,7 +35,7 @@ import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebHandler;
 
-import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR;
+import reactor.core.publisher.Mono;
 
 /**
  * WebHandler that delegates to a chain of {@link GlobalFilter} instances and
@@ -45,107 +45,111 @@ import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.G
  * @author Spencer Gibb
  * @since 0.1
  */
-public class FilteringWebHandler implements WebHandler {
+public class FilteringWebHandler implements WebHandler{
 
-	protected static final Log logger = LogFactory.getLog(FilteringWebHandler.class);
+    protected static final Log logger = LogFactory.getLog(FilteringWebHandler.class);
 
-	private final List<GatewayFilter> globalFilters;
+    private final List<GatewayFilter> globalFilters;
 
-	public FilteringWebHandler(List<GlobalFilter> globalFilters) {
-		this.globalFilters = loadFilters(globalFilters);
-	}
+    public FilteringWebHandler(List<GlobalFilter> globalFilters){
+        this.globalFilters = loadFilters(globalFilters);
+    }
 
-	private static List<GatewayFilter> loadFilters(List<GlobalFilter> filters) {
-		return filters.stream().map(filter -> {
-			GatewayFilterAdapter gatewayFilter = new GatewayFilterAdapter(filter);
-			if (filter instanceof Ordered) {
-				int order = ((Ordered) filter).getOrder();
-				return new OrderedGatewayFilter(gatewayFilter, order);
-			}
-			return gatewayFilter;
-		}).collect(Collectors.toList());
-	}
+    private static List<GatewayFilter> loadFilters(List<GlobalFilter> filters){
+        return filters.stream().map(filter -> {
+            GatewayFilterAdapter gatewayFilter = new GatewayFilterAdapter(filter);
+            if (filter instanceof Ordered){
+                int order = ((Ordered) filter).getOrder();
+                return new OrderedGatewayFilter(gatewayFilter, order);
+            }
+            return gatewayFilter;
+        }).collect(Collectors.toList());
+    }
 
-	/*
-	 * TODO: relocate @EventListener(RefreshRoutesEvent.class) void handleRefresh() {
-	 * this.combinedFiltersForRoute.clear();
-	 */
+    /*
+     * TODO: relocate @EventListener(RefreshRoutesEvent.class) void handleRefresh() {
+     * this.combinedFiltersForRoute.clear();
+     */
 
-	@Override
-	public Mono<Void> handle(ServerWebExchange exchange) {
-		Route route = exchange.getRequiredAttribute(GATEWAY_ROUTE_ATTR);
-		List<GatewayFilter> gatewayFilters = route.getFilters();
+    @Override
+    public Mono<Void> handle(ServerWebExchange exchange){
 
-		List<GatewayFilter> combined = new ArrayList<>(this.globalFilters);
-		combined.addAll(gatewayFilters);
-		// TODO: needed or cached?
-		AnnotationAwareOrderComparator.sort(combined);
+        //从 GATEWAY_ROUTE_ATTR 获得 请求对应的 Route 
+        Route route = exchange.getRequiredAttribute(GATEWAY_ROUTE_ATTR);
 
-		if (logger.isDebugEnabled()) {
-			logger.debug("Sorted gatewayFilterFactories: " + combined);
-		}
+        //获得 GatewayFilter 数组，包含 route.filters 和 globalFilters 。
+        List<GatewayFilter> gatewayFilters = route.getFilters();
+        List<GatewayFilter> combined = new ArrayList<>(this.globalFilters);
+        combined.addAll(gatewayFilters);
 
-		return new DefaultGatewayFilterChain(combined).filter(exchange);
-	}
+        // TODO: needed or cached?
+		// filter 排序
+        AnnotationAwareOrderComparator.sort(combined);
 
-	private static class DefaultGatewayFilterChain implements GatewayFilterChain {
+        if (logger.isDebugEnabled()){
+            logger.debug("Sorted gatewayFilterFactories: " + combined);
+        }
 
-		private final int index;
+        //使用获得的 GatewayFilter 数组创建 DefaultGatewayFilterChain
+        return new DefaultGatewayFilterChain(combined).filter(exchange);
+    }
 
-		private final List<GatewayFilter> filters;
+    private static class DefaultGatewayFilterChain implements GatewayFilterChain{
 
-		DefaultGatewayFilterChain(List<GatewayFilter> filters) {
-			this.filters = filters;
-			this.index = 0;
-		}
+        private final int index;
 
-		private DefaultGatewayFilterChain(DefaultGatewayFilterChain parent, int index) {
-			this.filters = parent.getFilters();
-			this.index = index;
-		}
+        private final List<GatewayFilter> filters;
 
-		public List<GatewayFilter> getFilters() {
-			return filters;
-		}
+        DefaultGatewayFilterChain(List<GatewayFilter> filters){
+            this.filters = filters;
+            this.index = 0;
+        }
 
-		@Override
-		public Mono<Void> filter(ServerWebExchange exchange) {
-			return Mono.defer(() -> {
-				if (this.index < filters.size()) {
-					GatewayFilter filter = filters.get(this.index);
-					DefaultGatewayFilterChain chain = new DefaultGatewayFilterChain(this,
-							this.index + 1);
-					return filter.filter(exchange, chain);
-				}
-				else {
-					return Mono.empty(); // complete
-				}
-			});
-		}
+        private DefaultGatewayFilterChain(DefaultGatewayFilterChain parent, int index){
+            this.filters = parent.getFilters();
+            this.index = index;
+        }
 
-	}
+        public List<GatewayFilter> getFilters(){
+            return filters;
+        }
 
-	private static class GatewayFilterAdapter implements GatewayFilter {
+        @Override
+        public Mono<Void> filter(ServerWebExchange exchange){
+            return Mono.defer(() -> {
+                if (this.index < filters.size()){
+                    GatewayFilter filter = filters.get(this.index);
+                    DefaultGatewayFilterChain chain = new DefaultGatewayFilterChain(this, this.index + 1);
+                    return filter.filter(exchange, chain);
+                }else{
+                    return Mono.empty(); // complete
+                }
+            });
+        }
 
-		private final GlobalFilter delegate;
+    }
 
-		GatewayFilterAdapter(GlobalFilter delegate) {
-			this.delegate = delegate;
-		}
+    private static class GatewayFilterAdapter implements GatewayFilter{
 
-		@Override
-		public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-			return this.delegate.filter(exchange, chain);
-		}
+        private final GlobalFilter delegate;
 
-		@Override
-		public String toString() {
-			final StringBuilder sb = new StringBuilder("GatewayFilterAdapter{");
-			sb.append("delegate=").append(delegate);
-			sb.append('}');
-			return sb.toString();
-		}
+        GatewayFilterAdapter(GlobalFilter delegate){
+            this.delegate = delegate;
+        }
 
-	}
+        @Override
+        public Mono<Void> filter(ServerWebExchange exchange,GatewayFilterChain chain){
+            return this.delegate.filter(exchange, chain);
+        }
+
+        @Override
+        public String toString(){
+            final StringBuilder sb = new StringBuilder("GatewayFilterAdapter{");
+            sb.append("delegate=").append(delegate);
+            sb.append('}');
+            return sb.toString();
+        }
+
+    }
 
 }

@@ -21,59 +21,65 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import reactor.cache.CacheFlux;
-import reactor.core.publisher.Flux;
-
 import org.springframework.cloud.gateway.event.RefreshRoutesEvent;
 import org.springframework.context.ApplicationListener;
 
+import reactor.cache.CacheFlux;
+import reactor.core.publisher.Flux;
+
 /**
+ * 实现了路由定义的本地缓存功能
+ * 
  * @author Spencer Gibb
  */
-public class CachingRouteDefinitionLocator
-		implements RouteDefinitionLocator, ApplicationListener<RefreshRoutesEvent> {
+public class CachingRouteDefinitionLocator implements RouteDefinitionLocator,ApplicationListener<RefreshRoutesEvent>{
 
-	private static final String CACHE_KEY = "routeDefs";
+    private static final String CACHE_KEY = "routeDefs";
 
-	private final RouteDefinitionLocator delegate;
+    /**
+     * 实际路由定义定位器
+     */
+    private final RouteDefinitionLocator delegate;
 
-	private final Flux<RouteDefinition> routeDefinitions;
+    private final Flux<RouteDefinition> routeDefinitions;
 
-	private final Map<String, List> cache = new ConcurrentHashMap<>();
+    /**
+     * 路由定义的本地缓存
+     */
+    private final Map<String, List> cache = new ConcurrentHashMap<>();
 
-	public CachingRouteDefinitionLocator(RouteDefinitionLocator delegate) {
-		this.delegate = delegate;
-		routeDefinitions = CacheFlux.lookup(cache, CACHE_KEY, RouteDefinition.class)
-				.onCacheMissResume(this::fetch);
-	}
+    public CachingRouteDefinitionLocator(RouteDefinitionLocator delegate){
+        this.delegate = delegate;
+        routeDefinitions = CacheFlux.lookup(cache, CACHE_KEY, RouteDefinition.class).onCacheMissResume(this::fetch);
+    }
 
-	private Flux<RouteDefinition> fetch() {
-		return this.delegate.getRouteDefinitions();
-	}
+    private Flux<RouteDefinition> fetch(){
+        return this.delegate.getRouteDefinitions();
+    }
 
-	@Override
-	public Flux<RouteDefinition> getRouteDefinitions() {
-		return this.routeDefinitions;
-	}
+    @Override
+    public Flux<RouteDefinition> getRouteDefinitions(){
+        return this.routeDefinitions;
+    }
 
-	/**
-	 * Clears the cache of routeDefinitions.
-	 * @return routeDefinitions flux
-	 */
-	public Flux<RouteDefinition> refresh() {
-		this.cache.clear();
-		return this.routeDefinitions;
-	}
+    /**
+     * Clears the cache of routeDefinitions.
+     * 
+     * @return routeDefinitions flux
+     */
+    public Flux<RouteDefinition> refresh(){
+        this.cache.clear();
+        return this.routeDefinitions;
+    }
 
-	@Override
-	public void onApplicationEvent(RefreshRoutesEvent event) {
-		fetch().materialize().collect(Collectors.toList())
-				.doOnNext(routes -> cache.put(CACHE_KEY, routes)).subscribe();
-	}
+    @Override
+    public void onApplicationEvent(RefreshRoutesEvent event){
+        fetch().materialize().collect(Collectors.toList()).doOnNext(routes -> cache.put(CACHE_KEY, routes)).subscribe();
+    }
 
-	@Deprecated
-	/* for testing */ void handleRefresh() {
-		refresh();
-	}
+    @Deprecated
+    /* for testing */ void handleRefresh(){
+        refresh();
+    }
 
 }

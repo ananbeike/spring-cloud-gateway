@@ -42,18 +42,30 @@ public class RouteDefinition {
 
 	private String id;
 
+	/**
+	 * 谓语定义数组
+	 */
 	@NotEmpty
 	@Valid
 	private List<PredicateDefinition> predicates = new ArrayList<>();
 
+	/**
+	 * 过滤器定义数组
+	 */
 	@Valid
 	private List<FilterDefinition> filters = new ArrayList<>();
 
+	/**
+	 * 路由向的 URI
+	 */
 	@NotNull
 	private URI uri;
 
 	private Map<String, Object> metadata = new HashMap<>();
 
+	/**
+	 *  顺序
+	 */
 	private int order = 0;
 
 	public RouteDefinition() {

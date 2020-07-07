@@ -19,11 +19,21 @@ package org.springframework.cloud.gateway.route;
 import reactor.core.publisher.Flux;
 
 /**
+ * Route 的定位器或者说探测器，是用来获取 Route 信息的
+ *
+ * @see org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder
+ *
+ *
+ * @see RouteDefinitionRouteLocator
+ *
+ * @see CompositeRouteLocator
+ * @see CachingRouteLocator
+ *
+ *
  * @author Spencer Gibb
  */
-// TODO: rename to Routes?
-public interface RouteLocator {
+public interface RouteLocator{
 
-	Flux<Route> getRoutes();
+    Flux<Route> getRoutes();
 
 }

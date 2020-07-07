@@ -16,6 +16,8 @@
 
 package org.springframework.cloud.gateway.handler.predicate;
 
+import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.toAsyncPredicate;
+
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -25,54 +27,65 @@ import org.springframework.cloud.gateway.support.NameUtils;
 import org.springframework.cloud.gateway.support.ShortcutConfigurable;
 import org.springframework.web.server.ServerWebExchange;
 
-import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.toAsyncPredicate;
-
 /**
+ * RoutePredicateFactory 是所有 predicate factory 的顶级接口，职责就是生产 Predicate。
+ *
+ * 创建一个用于配置用途的对象（config），以其作为参数应用到 apply方法上来生产一个 Predicate 对象，再将 Predicate 对象包装成 AsyncPredicate。
+ *
+ *
+ *
  * @author Spencer Gibb
  */
+//声明它是一个函数接口
 @FunctionalInterface
-public interface RoutePredicateFactory<C> extends ShortcutConfigurable, Configurable<C> {
+public interface RoutePredicateFactory<C> extends ShortcutConfigurable,Configurable<C>{
+
+    /**
+     * Pattern key.
+     */
+    String PATTERN_KEY = "pattern";
+
+    // useful for javadsl
+    default Predicate<ServerWebExchange> apply(Consumer<C> consumer){
+        C config = newConfig();
+        consumer.accept(config);
+        beforeApply(config);
+        return apply(config);
+    }
+
+    default AsyncPredicate<ServerWebExchange> applyAsync(Consumer<C> consumer){
+        C config = newConfig();
+        consumer.accept(config);
+        beforeApply(config);
+        return applyAsync(config);
+    }
+
+    default Class<C> getConfigClass(){
+        throw new UnsupportedOperationException("getConfigClass() not implemented");
+    }
+
+    @Override
+    default C newConfig(){
+        throw new UnsupportedOperationException("newConfig() not implemented");
+    }
+
+    default void beforeApply(C config){
+    }
+
+    Predicate<ServerWebExchange> apply(C config);
+
+    default AsyncPredicate<ServerWebExchange> applyAsync(C config){
+        return toAsyncPredicate(apply(config));
+    }
 
 	/**
-	 * Pattern key.
+	 * 调用 NameUtils#normalizePredicateName(Class) 方法，获得 RoutePredicateFactory 的名字。
+	 * 该方法截取类名前半段，例如 QueryRoutePredicateFactory 的结果为 Query
+	 *
+	 * @return
 	 */
-	String PATTERN_KEY = "pattern";
-
-	// useful for javadsl
-	default Predicate<ServerWebExchange> apply(Consumer<C> consumer) {
-		C config = newConfig();
-		consumer.accept(config);
-		beforeApply(config);
-		return apply(config);
-	}
-
-	default AsyncPredicate<ServerWebExchange> applyAsync(Consumer<C> consumer) {
-		C config = newConfig();
-		consumer.accept(config);
-		beforeApply(config);
-		return applyAsync(config);
-	}
-
-	default Class<C> getConfigClass() {
-		throw new UnsupportedOperationException("getConfigClass() not implemented");
-	}
-
-	@Override
-	default C newConfig() {
-		throw new UnsupportedOperationException("newConfig() not implemented");
-	}
-
-	default void beforeApply(C config) {
-	}
-
-	Predicate<ServerWebExchange> apply(C config);
-
-	default AsyncPredicate<ServerWebExchange> applyAsync(C config) {
-		return toAsyncPredicate(apply(config));
-	}
-
-	default String name() {
-		return NameUtils.normalizeRoutePredicateName(getClass());
-	}
+    default String name(){
+        return NameUtils.normalizeRoutePredicateName(getClass());
+    }
 
 }

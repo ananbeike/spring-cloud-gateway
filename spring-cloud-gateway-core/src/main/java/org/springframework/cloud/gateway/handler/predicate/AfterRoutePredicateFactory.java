@@ -28,52 +28,52 @@ import org.springframework.web.server.ServerWebExchange;
 /**
  * @author Spencer Gibb
  */
-public class AfterRoutePredicateFactory
-		extends AbstractRoutePredicateFactory<AfterRoutePredicateFactory.Config> {
+public class AfterRoutePredicateFactory extends AbstractRoutePredicateFactory<AfterRoutePredicateFactory.Config>{
 
-	/**
-	 * DateTime key.
-	 */
-	public static final String DATETIME_KEY = "datetime";
+    /**
+     * DateTime key.
+     */
+    public static final String DATETIME_KEY = "datetime";
 
-	public AfterRoutePredicateFactory() {
-		super(Config.class);
-	}
+    public AfterRoutePredicateFactory(){
+        super(Config.class);
+    }
 
-	@Override
-	public List<String> shortcutFieldOrder() {
-		return Collections.singletonList(DATETIME_KEY);
-	}
+    @Override
+    public List<String> shortcutFieldOrder(){
+        return Collections.singletonList(DATETIME_KEY);
+    }
 
-	@Override
-	public Predicate<ServerWebExchange> apply(Config config) {
-		return new GatewayPredicate() {
-			@Override
-			public boolean test(ServerWebExchange serverWebExchange) {
-				final ZonedDateTime now = ZonedDateTime.now();
-				return now.isAfter(config.getDatetime());
-			}
+    @Override
+    public Predicate<ServerWebExchange> apply(Config config){
+        return new GatewayPredicate(){
 
-			@Override
-			public String toString() {
-				return String.format("After: %s", config.getDatetime());
-			}
-		};
-	}
+            @Override
+            public boolean test(ServerWebExchange serverWebExchange){
+                final ZonedDateTime now = ZonedDateTime.now();
+                return now.isAfter(config.getDatetime());
+            }
 
-	public static class Config {
+            @Override
+            public String toString(){
+                return String.format("After: %s", config.getDatetime());
+            }
+        };
+    }
 
-		@NotNull
-		private ZonedDateTime datetime;
+    public static class Config{
 
-		public ZonedDateTime getDatetime() {
-			return datetime;
-		}
+        @NotNull
+        private ZonedDateTime datetime;
 
-		public void setDatetime(ZonedDateTime datetime) {
-			this.datetime = datetime;
-		}
+        public ZonedDateTime getDatetime(){
+            return datetime;
+        }
 
-	}
+        public void setDatetime(ZonedDateTime datetime){
+            this.datetime = datetime;
+        }
+
+    }
 
 }

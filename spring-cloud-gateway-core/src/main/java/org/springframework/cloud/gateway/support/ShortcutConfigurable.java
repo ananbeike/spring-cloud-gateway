@@ -16,11 +16,7 @@
 
 package org.springframework.cloud.gateway.support;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.BeanFactory;
@@ -34,132 +30,134 @@ import org.springframework.util.Assert;
 /**
  * @author Spencer Gibb
  */
-public interface ShortcutConfigurable {
+public interface ShortcutConfigurable{
 
-	static String normalizeKey(String key, int entryIdx, ShortcutConfigurable argHints,
-			Map<String, String> args) {
-		// RoutePredicateFactory has name hints and this has a fake key name
-		// replace with the matching key hint
-		if (key.startsWith(NameUtils.GENERATED_NAME_PREFIX)
-				&& !argHints.shortcutFieldOrder().isEmpty() && entryIdx < args.size()
-				&& entryIdx < argHints.shortcutFieldOrder().size()) {
-			key = argHints.shortcutFieldOrder().get(entryIdx);
-		}
-		return key;
-	}
+    static String normalizeKey(String key,int entryIdx,ShortcutConfigurable argHints,Map<String, String> args){
+        // RoutePredicateFactory has name hints and this has a fake key name
+        // replace with the matching key hint
+        if (key.startsWith(NameUtils.GENERATED_NAME_PREFIX) && !argHints.shortcutFieldOrder().isEmpty() && entryIdx < args.size()
+                        && entryIdx < argHints.shortcutFieldOrder().size()){
+            key = argHints.shortcutFieldOrder().get(entryIdx);
+        }
+        return key;
+    }
 
-	static Object getValue(SpelExpressionParser parser, BeanFactory beanFactory,
-			String entryValue) {
-		Object value;
-		String rawValue = entryValue;
-		if (rawValue != null) {
-			rawValue = rawValue.trim();
-		}
-		if (rawValue != null && rawValue.startsWith("#{") && entryValue.endsWith("}")) {
-			// assume it's spel
-			StandardEvaluationContext context = new StandardEvaluationContext();
-			context.setBeanResolver(new BeanFactoryResolver(beanFactory));
-			Expression expression = parser.parseExpression(entryValue,
-					new TemplateParserContext());
-			value = expression.getValue(context);
-		}
-		else {
-			value = entryValue;
-		}
-		return value;
-	}
+    static Object getValue(SpelExpressionParser parser,BeanFactory beanFactory,String entryValue){
+        Object value;
+        String rawValue = entryValue;
+        if (rawValue != null){
+            rawValue = rawValue.trim();
+        }
+        if (rawValue != null && rawValue.startsWith("#{") && entryValue.endsWith("}")){
+            // assume it's spel
+            StandardEvaluationContext context = new StandardEvaluationContext();
+            context.setBeanResolver(new BeanFactoryResolver(beanFactory));
+            Expression expression = parser.parseExpression(entryValue, new TemplateParserContext());
+            value = expression.getValue(context);
+        }else{
+            value = entryValue;
+        }
+        return value;
+    }
 
-	default ShortcutType shortcutType() {
-		return ShortcutType.DEFAULT;
-	}
+    default ShortcutType shortcutType(){
+        return ShortcutType.DEFAULT;
+    }
 
-	/**
-	 * Returns hints about the number of args and the order for shortcut parsing.
-	 * @return the list of hints
-	 */
-	default List<String> shortcutFieldOrder() {
-		return Collections.emptyList();
-	}
+    /**
+     * Returns hints about the number of args and the order for shortcut parsing.
+     * 
+     * @return the list of hints
+     */
+    default List<String> shortcutFieldOrder(){
+        return Collections.emptyList();
+    }
 
-	default String shortcutFieldPrefix() {
-		return "";
-	}
+    default String shortcutFieldPrefix(){
+        return "";
+    }
 
-	enum ShortcutType {
+    enum ShortcutType{
 
-		DEFAULT {
-			@Override
-			public Map<String, Object> normalize(Map<String, String> args,
-					ShortcutConfigurable shortcutConf, SpelExpressionParser parser,
-					BeanFactory beanFactory) {
-				Map<String, Object> map = new HashMap<>();
-				int entryIdx = 0;
-				for (Map.Entry<String, String> entry : args.entrySet()) {
-					String key = normalizeKey(entry.getKey(), entryIdx, shortcutConf,
-							args);
-					Object value = getValue(parser, beanFactory, entry.getValue());
+        DEFAULT{
 
-					map.put(key, value);
-					entryIdx++;
-				}
-				return map;
-			}
-		},
+            @Override
+            public Map<String, Object> normalize(
+                            Map<String, String> args,
+                            ShortcutConfigurable shortcutConf,
+                            SpelExpressionParser parser,
+                            BeanFactory beanFactory){
+                Map<String, Object> map = new HashMap<>();
+                int entryIdx = 0;
+                for (Map.Entry<String, String> entry : args.entrySet()){
+                	//格式化key，解析出的“_genkey_0”、“_genkey_1”，根据GatewayFilter#shortcutFieldOrder配置的参数名称集合匹配
+                    String key = normalizeKey(entry.getKey(), entryIdx, shortcutConf, args);
+                    Object value = getValue(parser, beanFactory, entry.getValue());
 
-		GATHER_LIST {
-			@Override
-			public Map<String, Object> normalize(Map<String, String> args,
-					ShortcutConfigurable shortcutConf, SpelExpressionParser parser,
-					BeanFactory beanFactory) {
-				Map<String, Object> map = new HashMap<>();
-				// field order should be of size 1
-				List<String> fieldOrder = shortcutConf.shortcutFieldOrder();
-				Assert.isTrue(fieldOrder != null && fieldOrder.size() == 1,
-						"Shortcut Configuration Type GATHER_LIST must have shortcutFieldOrder of size 1");
-				String fieldName = fieldOrder.get(0);
-				map.put(fieldName,
-						args.values().stream()
-								.map(value -> getValue(parser, beanFactory, value))
-								.collect(Collectors.toList()));
-				return map;
-			}
-		},
+                    map.put(key, value);
+                    entryIdx++;
+                }
+                return map;
+            }
+        },
 
-		// list is all elements except last which is a boolean flag
-		GATHER_LIST_TAIL_FLAG {
-			@Override
-			public Map<String, Object> normalize(Map<String, String> args,
-					ShortcutConfigurable shortcutConf, SpelExpressionParser parser,
-					BeanFactory beanFactory) {
-				Map<String, Object> map = new HashMap<>();
-				// field order should be of size 1
-				List<String> fieldOrder = shortcutConf.shortcutFieldOrder();
-				Assert.isTrue(fieldOrder != null && fieldOrder.size() == 2,
-						"Shortcut Configuration Type GATHER_LIST_HEAD must have shortcutFieldOrder of size 2");
-				List<String> values = new ArrayList<>(args.values());
-				if (!values.isEmpty()) {
-					// strip boolean flag if last entry is true or false
-					int lastIdx = values.size() - 1;
-					String lastValue = values.get(lastIdx);
-					if (lastValue.equalsIgnoreCase("true")
-							|| lastValue.equalsIgnoreCase("false")) {
-						values = values.subList(0, lastIdx);
-						map.put(fieldOrder.get(1),
-								getValue(parser, beanFactory, lastValue));
-					}
-				}
-				String fieldName = fieldOrder.get(0);
-				map.put(fieldName,
-						values.stream().map(value -> getValue(parser, beanFactory, value))
-								.collect(Collectors.toList()));
-				return map;
-			}
-		};
+        GATHER_LIST{
 
-		public abstract Map<String, Object> normalize(Map<String, String> args,
-				ShortcutConfigurable shortcutConf, SpelExpressionParser parser,
-				BeanFactory beanFactory);
+            @Override
+            public Map<String, Object> normalize(
+                            Map<String, String> args,
+                            ShortcutConfigurable shortcutConf,
+                            SpelExpressionParser parser,
+                            BeanFactory beanFactory){
+                Map<String, Object> map = new HashMap<>();
+                // field order should be of size 1
+                List<String> fieldOrder = shortcutConf.shortcutFieldOrder();
+                Assert.isTrue(
+                                fieldOrder != null && fieldOrder.size() == 1,
+                                "Shortcut Configuration Type GATHER_LIST must have shortcutFieldOrder of size 1");
+                String fieldName = fieldOrder.get(0);
+                map.put(fieldName, args.values().stream().map(value -> getValue(parser, beanFactory, value)).collect(Collectors.toList()));
+                return map;
+            }
+        },
 
-	}
+        // list is all elements except last which is a boolean flag
+        GATHER_LIST_TAIL_FLAG{
+
+            @Override
+            public Map<String, Object> normalize(
+                            Map<String, String> args,
+                            ShortcutConfigurable shortcutConf,
+                            SpelExpressionParser parser,
+                            BeanFactory beanFactory){
+                Map<String, Object> map = new HashMap<>();
+                // field order should be of size 1
+                List<String> fieldOrder = shortcutConf.shortcutFieldOrder();
+                Assert.isTrue(
+                                fieldOrder != null && fieldOrder.size() == 2,
+                                "Shortcut Configuration Type GATHER_LIST_HEAD must have shortcutFieldOrder of size 2");
+                List<String> values = new ArrayList<>(args.values());
+                if (!values.isEmpty()){
+                    // strip boolean flag if last entry is true or false
+                    int lastIdx = values.size() - 1;
+                    String lastValue = values.get(lastIdx);
+                    if (lastValue.equalsIgnoreCase("true") || lastValue.equalsIgnoreCase("false")){
+                        values = values.subList(0, lastIdx);
+                        map.put(fieldOrder.get(1), getValue(parser, beanFactory, lastValue));
+                    }
+                }
+                String fieldName = fieldOrder.get(0);
+                map.put(fieldName, values.stream().map(value -> getValue(parser, beanFactory, value)).collect(Collectors.toList()));
+                return map;
+            }
+        };
+
+        public abstract Map<String, Object> normalize(
+                        Map<String, String> args,
+                        ShortcutConfigurable shortcutConf,
+                        SpelExpressionParser parser,
+                        BeanFactory beanFactory);
+
+    }
 
 }
