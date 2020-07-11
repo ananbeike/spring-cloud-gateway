@@ -188,8 +188,8 @@ public class GatewayAutoConfiguration{
      * 在context启动完成后，抛出 ContextRefreshedEvent 事件，
      * 被RouteRefreshListener捕获后 发出 RefreshRoutesEvent事件--->WeightCalculatorWebFilter
      *
-	 * @see WeightCalculatorWebFilter
-	 *
+     * @see WeightCalculatorWebFilter
+     *
      * @param publisher
      * @return
      */
@@ -198,6 +198,12 @@ public class GatewayAutoConfiguration{
         return new RouteRefreshListener(publisher);
     }
 
+    /**
+     * FilteringWebHandler 初始化的时候将所有的GlobalFilter通过内部类GatewayFilterAdapter转换为GatewayFilter
+     * 
+     * @param globalFilters
+     * @return
+     */
     @Bean
     public FilteringWebHandler filteringWebHandler(List<GlobalFilter> globalFilters){
         return new FilteringWebHandler(globalFilters);
@@ -303,16 +309,16 @@ public class GatewayAutoConfiguration{
         return new WebsocketRoutingFilter(webSocketClient, webSocketService, headersFilters);
     }
 
-	/**
-	 *
-	 * routeLocator内部包装的就是CachingRouteLocator实例
-	 *
-	 * {@link this#cachedCompositeRouteLocator(List)}
-	 *
-	 * @param configurationService
-	 * @param routeLocator
-	 * @return
-	 */
+    /**
+     *
+     * routeLocator内部包装的就是CachingRouteLocator实例
+     *
+     * {@link this#cachedCompositeRouteLocator(List)}
+     *
+     * @param configurationService
+     * @param routeLocator
+     * @return
+     */
     @Bean
     public WeightCalculatorWebFilter weightCalculatorWebFilter(ConfigurationService configurationService,ObjectProvider<RouteLocator> routeLocator){
         return new WeightCalculatorWebFilter(routeLocator, configurationService);
@@ -668,6 +674,11 @@ public class GatewayAutoConfiguration{
 
     }
 
+    /**
+     * spring cloud gateway集成hystrix实战
+     *
+     * 如果项目里面引用了 spring-cloud-starter-netflix-hystrix 就是生效当前配置
+     */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass({ HystrixObservableCommand.class, RxReactiveStreams.class })
     protected static class HystrixConfiguration{

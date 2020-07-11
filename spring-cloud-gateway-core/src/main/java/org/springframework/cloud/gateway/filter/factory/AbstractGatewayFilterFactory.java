@@ -23,43 +23,44 @@ import org.springframework.context.ApplicationEventPublisherAware;
 /**
  * This class is BETA and may be subject to change in a future release.
  *
- * @param <C> {@link AbstractConfigurable} subtype
+ * @param <C>
+ *            {@link AbstractConfigurable} subtype
  */
 public abstract class AbstractGatewayFilterFactory<C> extends AbstractConfigurable<C>
-		implements GatewayFilterFactory<C>, ApplicationEventPublisherAware {
+                implements GatewayFilterFactory<C>,ApplicationEventPublisherAware{
 
-	private ApplicationEventPublisher publisher;
+    private ApplicationEventPublisher publisher;
 
-	@SuppressWarnings("unchecked")
-	public AbstractGatewayFilterFactory() {
-		super((Class<C>) Object.class);
-	}
+    @SuppressWarnings("unchecked")
+    public AbstractGatewayFilterFactory(){
+        super((Class<C>) Object.class);
+    }
 
-	public AbstractGatewayFilterFactory(Class<C> configClass) {
-		super(configClass);
-	}
+    public AbstractGatewayFilterFactory(Class<C> configClass){
+        super(configClass);
+    }
 
-	protected ApplicationEventPublisher getPublisher() {
-		return this.publisher;
-	}
+    protected ApplicationEventPublisher getPublisher(){
+        return this.publisher;
+    }
 
-	@Override
-	public void setApplicationEventPublisher(ApplicationEventPublisher publisher) {
-		this.publisher = publisher;
-	}
+    @Override
+    public void setApplicationEventPublisher(ApplicationEventPublisher publisher){
+        this.publisher = publisher;
+    }
 
-	public static class NameConfig {
+    public static class NameConfig{
 
-		private String name;
+        private String name;
 
-		public String getName() {
-			return name;
-		}
+        public String getName(){
+            return name;
+        }
 
-		public void setName(String name) {
-			this.name = name;
-		}
+        public void setName(String name){
+            this.name = name;
+        }
 
-	}
+    }
 
 }

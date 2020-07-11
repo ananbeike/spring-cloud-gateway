@@ -49,13 +49,24 @@ public class FilteringWebHandler implements WebHandler{
 
     protected static final Log logger = LogFactory.getLog(FilteringWebHandler.class);
 
+	/**
+	 * 全局过滤器
+	 */
     private final List<GatewayFilter> globalFilters;
 
     public FilteringWebHandler(List<GlobalFilter> globalFilters){
+
         this.globalFilters = loadFilters(globalFilters);
     }
 
+    /**
+     * 所有的GlobalFilter通过内部类GatewayFilterAdapter转换为GatewayFilter
+     * 
+     * @param filters
+     * @return
+     */
     private static List<GatewayFilter> loadFilters(List<GlobalFilter> filters){
+
         return filters.stream().map(filter -> {
             GatewayFilterAdapter gatewayFilter = new GatewayFilterAdapter(filter);
             if (filter instanceof Ordered){
@@ -64,6 +75,7 @@ public class FilteringWebHandler implements WebHandler{
             }
             return gatewayFilter;
         }).collect(Collectors.toList());
+
     }
 
     /*
@@ -82,12 +94,12 @@ public class FilteringWebHandler implements WebHandler{
         List<GatewayFilter> combined = new ArrayList<>(this.globalFilters);
         combined.addAll(gatewayFilters);
 
-		/**
-		 * 这里globalfilter和gatewayfilter的顺序都是按照 ordered接口来走的
-		 * 所以有可能gatewayfilter跑在globalfilter前面
-		 */
-		// TODO: needed or cached?
-		// filter 排序
+        /**
+         * 这里globalfilter和gatewayfilter的顺序都是按照 ordered接口来走的
+         * 所以有可能gatewayfilter跑在globalfilter前面
+         */
+        // TODO: needed or cached?
+        // filter 排序
         AnnotationAwareOrderComparator.sort(combined);
 
         if (logger.isDebugEnabled()){
@@ -133,6 +145,9 @@ public class FilteringWebHandler implements WebHandler{
 
     }
 
+    /**
+     * 将 GlobalFilter 委托成 GatewayFilterAdapter
+     */
     private static class GatewayFilterAdapter implements GatewayFilter{
 
         private final GlobalFilter delegate;
